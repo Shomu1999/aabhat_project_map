@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Aabhat Project Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+
+    <!-- Reset CSS-->
+    <link rel="stylesheet" href="css/reset.css" />
+
+    <!-- CSS-->
+    <link rel="stylesheet" href="css/style.css" />
+
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+    <!-- Greyscale -->
+    <script src="https://cdn.jsdelivr.net/gh/Zverik/leaflet-grayscale@master/TileLayer.Grayscale.js"></script>
+
+    <!-- MarkerCluster -->
+    <link rel="stylesheet" href="lib\dist\MarkerCluster.css" />
+    <link rel="stylesheet" href="lib\dist\MarkerCluster.Default.css" />
+    <script src="lib\dist\leaflet.markercluster-src.js"></script>
+
+    <!-- PapaParse -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+</head>
+<body>
+    <div id="map"></div>     
+
+    <!--Construct map -->
+    <script>
+      const map = L.map("map").setView([23.00,76.46], 5);
+
+      L.tileLayer
+        .grayscale("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        })
+        .addTo(map);
+
+      const markerCluster = L.markerClusterGroup(
+        {
+          showCoverageOnHover: false,
+          zoomToBoundsOnClick: true,
+          spiderfyOnMaxZoom: false,
+          spiderLegPolylineOptions: {
+            color: "#666",
+            weight: 0.1,
+            opacity: 0.25,
+          },
+          iconCreateFunction: function (cluster) {
+            return L.divIcon({
+              html: `<div class="marker-cluster">${cluster.getChildCount()}</div>`,
+              className: "marker-cluster",
+              iconSize: L.point(32, 32),
+            });
+          },        
+      }
+
+      );
+
+      //Construct Marker Icon
+      const defaultmarker = L.icon({
+        iconUrl: "assets/icon/marker.svg",
+        iconSize: [30, 40], // adjust as needed
+        iconAnchor: [15, 40], // point of the icon that points to the location
+        popupAnchor: [0, -35], // where the popup opens relative to the icon
+      });
+      
+      // Load CSV
+      fetch("assets/project.csv")
+        .then((response) => response.text())
+        .then((csvText) => {
+          Papa.parse(csvText, {
+            header: true,
+            skipEmptyLines: true,
+            complete: function (results) {
+              results.data.forEach((row) => {
+                if (row.lat && row.lng) {
+                  const tags = [
+                    { label: row.tag1, link: row.tag1link },
+                    { label: row.tag2, link: row.tag2link },
+                    { label: row.tag3, link: row.tag3link },
+                  ];
+
+                  // Filter out empty tags
+                  const tagItems = tags
+                    .filter(tag => tag.label && tag.label.trim() !== "")
+                    .map(tag => `<li><a href="${tag.link}" target="_blank">${tag.label}</a></li>`)
+                    .join("");
+
+                  const projectcard = `
+                    <div class="project-card">
+                      <img src="${row.image}" alt="${row.name}" class="project-img" />
+                      <ul class="tags">${tagItems}</ul>
+                      <h3 class="project-title">${row.name}</h3>
+                      <p class="project-description">${row.text}</p>
+                      <a href="${row.link}" class="project-link" target="_blank">Learn More</a>
+                    </div>
+                  `;
+                  const marker = L.marker(
+                    [parseFloat(row.lat), parseFloat(row.lng)],
+                    { icon: defaultmarker }
+                  )
+                  .bindPopup(projectcard);
+
+                  markerCluster.addLayer(marker);
+                }
+              });
+
+              map.addLayer(markerCluster);
+            },
+          });
+        });
+    </script>
+  </body>
+</html>
